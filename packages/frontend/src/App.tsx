@@ -202,6 +202,21 @@ function App() {
       <main className="main">
         <div className="topbar">
           <div className="topbar-title">{topbarLabel}</div>
+          <a
+            className="github-link"
+            href="https://github.com/heyanpeng/RoleBridgeAI"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="打开 GitHub 仓库"
+            title="GitHub"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 1.5A10.5 10.5 0 0 0 1.5 12c0 4.67 3.03 8.63 7.23 10.03.53.1.72-.23.72-.51v-2.01c-2.94.64-3.56-1.25-3.56-1.25-.48-1.21-1.17-1.54-1.17-1.54-.95-.65.07-.64.07-.64 1.06.08 1.61 1.08 1.61 1.08.93 1.6 2.44 1.14 3.04.87.09-.68.36-1.15.65-1.41-2.34-.27-4.8-1.17-4.8-5.2 0-1.15.4-2.08 1.08-2.82-.1-.27-.47-1.36.1-2.83 0 0 .89-.29 2.92 1.08a10.2 10.2 0 0 1 5.3 0c2.03-1.37 2.92-1.08 2.92-1.08.57 1.47.2 2.56.1 2.83.68.74 1.08 1.67 1.08 2.82 0 4.04-2.47 4.92-4.83 5.18.38.33.72.97.72 1.96v2.9c0 .28.2.62.73.51A10.5 10.5 0 0 0 22.5 12 10.5 10.5 0 0 0 12 1.5Z"
+              />
+            </svg>
+          </a>
         </div>
         <div
           className="messages-container"

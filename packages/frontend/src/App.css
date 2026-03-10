@@ -178,6 +178,30 @@
   color: var(--text-muted);
 }
 
+.github-link {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.github-link:hover {
+  color: var(--text);
+  background: var(--hover);
+  border-color: var(--border);
+}
+
+.github-link svg {
+  width: 18px;
+  height: 18px;
+}
+
 .messages-container {
   flex: 1;
   overflow-y: auto;
