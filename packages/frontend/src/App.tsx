@@ -115,8 +115,6 @@ const createFallback = (dir: Dir, text: string) => {
   return `### 业务翻译\n- 用户价值：${text}\n- 直观收益：体验更快、更稳，减少等待和失败感知\n- 业务影响：提升转化与留存，降低客服投诉\n- 成本收益：同等资源支撑更大业务规模\n- 后续机会：可继续做精细化运营和自动化增长实验`;
 };
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 function App() {
   const [currentDir, setCurrentDir] = useState<Dir>("pm2dev");
   const [input, setInput] = useState("");
@@ -128,6 +126,7 @@ function App() {
     null,
   );
   const stopRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
   const msgContainerRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
   const prevMessageCountRef = useRef(0);
@@ -194,12 +193,19 @@ function App() {
     setTopbarLabel("职能沟通翻译");
   };
 
-  const fetchTranslation = async (dir: Dir, text: string) => {
-    const res = await fetch(`${BACKEND_BASE_URL}/api/chat/completions`, {
+  const fetchTranslationStream = async (
+    dir: Dir,
+    text: string,
+    assistantId: string,
+  ) => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const res = await fetch(`${BACKEND_BASE_URL}/api/chat/completions/stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: "local-model",
         max_tokens: 1200,
@@ -209,33 +215,59 @@ function App() {
         ],
       }),
     });
-    if (!res.ok) {
+    if (!res.ok || !res.body) {
       const errorText = await res.text().catch(() => "");
-      if (errorText) {
-        throw new Error(errorText);
-      }
-      return createFallback(dir, text);
+      throw new Error(errorText || "请求失败");
     }
-    const json = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = json.choices?.[0]?.message?.content;
-    if (typeof content !== "string" || !content.trim()) {
-      return createFallback(dir, text);
-    }
-    return content;
-  };
 
-  const streamText = async (id: string, fullText: string) => {
-    let partial = "";
-    for (const char of fullText) {
-      if (stopRef.current) break;
-      partial += char;
-      setMessages((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, content: partial } : m)),
-      );
-      await sleep(12);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let eventBuffer = "";
+    let fullText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      eventBuffer += decoder.decode(value, { stream: true });
+
+      let sepIndex = eventBuffer.indexOf("\n\n");
+      while (sepIndex !== -1) {
+        const block = eventBuffer.slice(0, sepIndex);
+        eventBuffer = eventBuffer.slice(sepIndex + 2);
+        const dataLines = block
+          .split("\n")
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trimStart());
+        if (dataLines.length === 0) {
+          sepIndex = eventBuffer.indexOf("\n\n");
+          continue;
+        }
+
+        const payload = dataLines.join("\n");
+        if (payload === "[DONE]") {
+          return fullText;
+        }
+
+        try {
+          const parsed = JSON.parse(payload) as { delta?: string };
+          const delta = parsed.delta;
+          if (typeof delta === "string" && delta.length > 0) {
+            fullText += delta;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: fullText } : m,
+              ),
+            );
+          }
+        } catch {
+          sepIndex = eventBuffer.indexOf("\n\n");
+          continue;
+        }
+
+        sepIndex = eventBuffer.indexOf("\n\n");
+      }
     }
+    return fullText;
   };
 
   const sendMsg = async (override?: { dir: Dir; text: string }) => {
@@ -263,9 +295,16 @@ function App() {
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setInput("");
     try {
-      const fullText = await fetchTranslation(useDir, text);
-      await streamText(assistantId, fullText);
-      if (stopRef.current) {
+      const fullText = await fetchTranslationStream(useDir, text, assistantId);
+      if (!fullText.trim()) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: createFallback(useDir, text) }
+              : m,
+          ),
+        );
+      } else if (stopRef.current) {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
@@ -275,6 +314,18 @@ function App() {
         );
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        if (stopRef.current) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? { ...m, content: `${m.content}\n\n∎ 已中断` }
+                : m,
+            ),
+          );
+        }
+        return;
+      }
       const message = error instanceof Error ? error.message : "请求失败";
       setMessages((prev) =>
         prev.map((m) =>
@@ -286,12 +337,14 @@ function App() {
     } finally {
       setIsStreaming(false);
       stopRef.current = false;
+      abortRef.current = null;
     }
   };
 
   const handleSendClick = () => {
     if (isStreaming) {
       stopRef.current = true;
+      abortRef.current?.abort();
       return;
     }
     void sendMsg();
