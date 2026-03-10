@@ -1,73 +1,77 @@
-# React + TypeScript + Vite
+# RoleBridgeAI 职能沟通翻译助手
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+RoleBridgeAI 是一个面向「产品经理 ↔ 开发工程师」沟通场景的双向翻译工具。  
+它通过结构化提示词把同一件事情转换成目标角色更容易理解、可决策或可执行的表达方式。
 
-Currently, two official plugins are available:
+#### 快速开始
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+# 如何安装依赖
+pnpm install
 
-## React Compiler
+# 如何配置API Key
+# 1) 复制 backend 环境变量（可选）
+# 2) 按你的模型服务配置修改
+cp packages/backend/.env.example packages/backend/.env 2>/dev/null || true
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+# 示例环境变量（写入 packages/backend/.env）
+# PORT=3001
+# LLM_BASE_URL=http://127.0.0.1:8000
+# LLM_MODEL=local-model
+# LLM_API_KEY=your_api_key
 
-## Expanding the ESLint configuration
+# 如何运行项目
+# 终端1：启动后端
+pnpm dev:backend
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 终端2：启动前端
+pnpm dev:frontend
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+访问前端：`http://localhost:5173`  
+默认后端：`http://localhost:3001`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+#### 功能说明
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- 这个工具做什么？
+  - 把产品语言翻译为开发可执行方案；把技术语言翻译为产品可决策描述。
+- 有哪些核心功能？
+  - 双向翻译：产品视角 → 开发视角、开发视角 → 产品视角
+  - 实时流式输出：后端 SSE 转发模型增量结果，前端边收边展示
+  - 一键示例输入：内置两个方向的场景化示例
+  - 会话体验优化：自动滚动跟随、用户手动滚动保护、生成中可停止
+  - 结果格式化：将结构化文本渲染为更易读的 Markdown 风格内容
+
+#### 测试用例
+
+1. 产品视角输入示例及翻译效果
+   - 输入示例：`我们需要一个智能推荐功能，提升用户停留时长`
+   - 预期翻译效果：
+     - 输出技术目标拆解（如召回/排序/策略）
+     - 给出可行方案路径（规则、协同过滤、内容推荐等）
+     - 说明数据需求与系统关注点（实时性、性能、扩展性）
+     - 包含开发复杂度或工时评估
+
+2. 开发视角输入示例及翻译效果
+   - 输入示例：`我们优化了数据库查询，QPS提升30%，P99从200ms降到50ms`
+   - 预期翻译效果：
+     - 用非技术语言说明改动本质
+     - 明确用户体验提升（响应更快、更稳定）
+     - 转换为业务价值（转化、留存、投诉率等）
+     - 提出未来可支持能力（更高并发、更多功能承载）
+
+#### 提示词设计说明
+
+- 你是如何让AI理解"产品视角"和"开发视角"的差异的？
+  - 为两个方向分别定义独立系统提示词，并固定角色身份与输出目标：
+    - `pm2dev`：强调“技术可执行性”，要求补全实现细节与工程约束
+    - `dev2pm`：强调“业务可决策性”，要求转译用户价值与业务影响
+
+- 提示词中的关键设计点是什么？
+  - 角色锚定：先定义“你是谁”，减少模型跑偏
+  - 目标约束：明确“翻译给谁看、要解决什么决策问题”
+  - 结构化输出：规定固定小节，提升可读性与稳定性
+  - 信息补全：要求补足源文本常缺信息（技术细节或业务价值）
+  - 术语降噪：按目标受众替换术语，降低跨角色理解成本
+
+提示词与配置位置：global.ts
