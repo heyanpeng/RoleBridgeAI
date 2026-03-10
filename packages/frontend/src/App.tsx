@@ -129,14 +129,39 @@ function App() {
   );
   const stopRef = useRef(false);
   const msgContainerRef = useRef<HTMLDivElement>(null);
+  const autoScrollRef = useRef(true);
+  const prevMessageCountRef = useRef(0);
+  const userScrollLockUntilRef = useRef(0);
 
   const cfg = useMemo(() => DIR_CONFIG[currentDir], [currentDir]);
   const showWelcome = messages.length === 0;
 
+  const isNearBottom = (el: HTMLDivElement) =>
+    el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+
+  const handleMsgScroll = () => {
+    const el = msgContainerRef.current;
+    if (!el) return;
+    autoScrollRef.current = isNearBottom(el);
+  };
+
+  const markUserScrolling = () => {
+    userScrollLockUntilRef.current = Date.now() + 260;
+  };
+
   useEffect(() => {
-    msgContainerRef.current?.scrollTo({
-      top: msgContainerRef.current.scrollHeight,
-      behavior: "smooth",
+    const el = msgContainerRef.current;
+    if (!el) return;
+    const messageCountChanged = messages.length !== prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+    if (messageCountChanged && isNearBottom(el)) {
+      autoScrollRef.current = true;
+    }
+    if (Date.now() < userScrollLockUntilRef.current) return;
+    if (!autoScrollRef.current) return;
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: "auto",
     });
   }, [messages]);
 
@@ -321,7 +346,13 @@ function App() {
         <div className="topbar">
           <div className="topbar-title">{topbarLabel}</div>
         </div>
-        <div className="messages-container" ref={msgContainerRef}>
+        <div
+          className="messages-container"
+          ref={msgContainerRef}
+          onScroll={handleMsgScroll}
+          onWheel={markUserScrolling}
+          onTouchMove={markUserScrolling}
+        >
           {showWelcome ? (
             <div className="welcome">
               <div className="welcome-header">
