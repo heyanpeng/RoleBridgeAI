@@ -8,6 +8,7 @@
   "scripts": {
     "dev:frontend": "pnpm --filter @rolebridgeai/frontend dev",
     "build:frontend": "pnpm --filter @rolebridgeai/frontend build",
+    "deploy:frontend": "pnpm --filter @rolebridgeai/frontend run deploy",
     "lint:frontend": "pnpm --filter @rolebridgeai/frontend lint",
     "preview:frontend": "pnpm --filter @rolebridgeai/frontend preview",
     "dev:backend": "pnpm --filter @rolebridgeai/backend dev",

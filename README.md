@@ -75,3 +75,22 @@ pnpm dev:frontend
   - 术语降噪：按目标受众替换术语，降低跨角色理解成本
 
 提示词与配置位置：global.ts
+
+#### GitHub Pages 发布（gh-pages）
+
+```bash
+# 1) 安装依赖（首次）
+pnpm install
+
+# 2) 配置生产环境后端地址（前端将调用该地址）
+cp packages/frontend/.env.production.example packages/frontend/.env.production
+
+# 3) 一键发布到 gh-pages 分支
+pnpm deploy:frontend
+```
+
+- 当前仓库会发布到：`https://heyanpeng.github.io/RoleBridgeAI/`
+- 发布脚本会自动：
+  - 使用 `--base=/RoleBridgeAI/` 构建静态资源
+  - 复制 `dist/index.html` 为 `dist/404.html`（支持刷新路由）
+  - 推送 `packages/frontend/dist` 到 `gh-pages` 分支
