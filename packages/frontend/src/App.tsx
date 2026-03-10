@@ -83,7 +83,8 @@ const SYSTEM_PROMPTS = {
     "你是开发工程师与产品经理之间的沟通翻译助手。把技术描述翻译成产品可决策版本，覆盖用户体验影响、业务价值、增长空间、成本收益、风险降低、后续机会。输出中文 Markdown。",
 } as const;
 
-const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+const BACKEND_BASE_URL =
+  import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:3001";
 
 const escHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -169,16 +170,13 @@ function App() {
   };
 
   const fetchTranslation = async (dir: Dir, text: string) => {
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
-    if (!apiKey) return createFallback(dir, text);
-    const res = await fetch(OPENAI_ENDPOINT, {
+    const res = await fetch(`${BACKEND_BASE_URL}/api/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "local-model",
         max_tokens: 1200,
         messages: [
           { role: "system", content: SYSTEM_PROMPTS[dir] },
@@ -187,13 +185,18 @@ function App() {
       }),
     });
     if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(errorText || "请求失败");
+      const errorText = await res.text().catch(() => "");
+      if (errorText) {
+        throw new Error(errorText);
+      }
+      return createFallback(dir, text);
     }
-    const json = await res.json();
+    const json = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
     const content = json.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) {
-      throw new Error("模型返回为空");
+      return createFallback(dir, text);
     }
     return content;
   };
